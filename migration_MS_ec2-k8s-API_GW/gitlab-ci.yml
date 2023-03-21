@@ -1,0 +1,75 @@
+#Specifies the Docker image used as the base image for the pipeline.
+image: docker:latest
+
+#Specifies the Docker-in-Docker service used by the pipeline.
+services:
+  - docker:dind
+
+#Defines the stages of the pipeline, in this case, "build", "test", and "deploy". 
+#Each stage is run sequentially, and only if the previous stage succeeds.
+stages:
+  - build
+  - test
+  - deploy
+
+#Defines variables used by the pipeline. In this case, we define the Docker driver,
+#container registry, Kubernetes namespace, server URL, and authentication 
+#credentials. The values of some of these variables, such as KUBE_CA_PEM and 
+#KUBE_TOKEN, are passed in as environment variables from the pipeline's settings.
+variables:
+  DOCKER_DRIVER: overlay2
+  CONTAINER_REGISTRY: my-registry
+  KUBE_NAMESPACE: my-namespace
+  KUBE_SERVER: https://kubernetes-server-url
+  KUBE_CA_PEM: $KUBE_CA_PEM
+  KUBE_TOKEN: $KUBE_TOKEN
+
+#Defines a script that is run before the pipeline's main script. In this case, we
+#decode the Kubernetes CA certificate from a base64-encoded variable and store it
+#in /tmp/kube-ca.pem.
+before_script:
+  - echo "$KUBE_CA_PEM" | base64 -d > /tmp/kube-ca.pem
+
+#Defines the build stage of the pipeline. This stage builds the Docker image of 
+#the microservice using the Dockerfile and pushes it to the Docker registry.
+build:
+  stage: build
+  script:
+    - docker build -t $CONTAINER_REGISTRY/subscription-microservice:$CI_COMMIT_SHA .
+    - docker push $CONTAINER_REGISTRY/subscription-microservice:$CI_COMMIT_SHA
+
+#Defines the test stage of the pipeline. In this example, we have left this 
+#stage blank, but you would typically run any required tests for the microservice 
+#in this stage.
+test:
+  stage: test
+  script:
+    - Run tests
+
+#Defines the deploy stage of the pipeline. This stage sets up the Kubernetes
+#cluster credentials using kubectl, then applies the deployment and service YAML
+#files to deploy the microservice to the Kubernetes cluster.
+deploy:
+  stage: deploy
+  script:
+    - kubectl config set-cluster my-cluster --server=$KUBE_SERVER --certificate-authority=/tmp/kube-ca.pem --embed-certs=true
+    - kubectl config set-credentials ci-cd --token=$KUBE_TOKEN
+    - kubectl config set-context default --cluster=my-cluster --user=ci-cd
+    - kubectl config use-context default
+    - kubectl apply -f kubernetes/deployment.yaml -n $KUBE_NAMESPACE
+    - kubectl apply -f kubernetes/service.yaml -n $KUBE_NAMESPACE
+    
+# we have added an after_script section that sets up Argo CD for GitOps deployment
+#of the microservice to the Kubernetes cluster.
+
+after_script:
+  - curl -sSL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml | kubectl apply -f -
+  - kubectl create namespace argocd
+  - kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+  - sleep 30
+  - ARGO_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+  - ARGO_SERVER=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  - argocd login $ARGO_SERVER --username=admin --password=$ARGO_PASSWORD --insecure
+  - argocd app create subscription-microservice --repo https://gitlab.com/my-username/my-repo.git --path kubernetes --dest-server https://kubernetes-server-url --dest-namespace $KUBE_NAMESPACE
+  - argocd app sync subscription-microservice
+
