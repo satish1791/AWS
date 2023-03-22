@@ -1,0 +1,35 @@
+Tier 1: Presentation Layer
+
+Create an Elastic Load Balancer (ELB) to distribute incoming requests to a set of web servers running on EC2 instances.
+Create a Virtual Private Cloud (VPC) to host the ELB and EC2 instances.
+Create an Amazon Route 53 DNS record to map your application's domain name to the ELB's public IP address.
+Install and configure NGINX on the web servers to serve as a reverse proxy, load balancer, and SSL/TLS terminator.
+Deploy your Python-based microservices on the web servers using a web framework such as Flask or Django.
+Tier 2: Business Logic Layer
+
+Create an Amazon RDS instance to host a relational database such as MySQL or PostgreSQL.
+Configure the security group for the RDS instance to only allow inbound traffic from the web servers in the VPC.
+Create an IAM role for the Python-based microservices to access the RDS instance.
+Modify the Python-based microservices to connect to the RDS instance using a database driver such as SQLAlchemy or psycopg2.
+Write the business logic for managing mobile device subscriptions using Python and integrate it into your microservices.
+Tier 3: Data Storage Layer
+
+Create an Amazon S3 bucket to store files such as user profile pictures or device images.
+Create an IAM role for the Python-based microservices to access the S3 bucket.
+Modify the Python-based microservices to interact with the S3 bucket using a library such as boto3.
+To bring it all together, you'll need to configure the different components to work together. For example, you'll need to specify the ELB's URL in your Python-based microservices and configure the NGINX reverse proxy to forward requests to the appropriate microservice based on the URL path. You'll also need to configure the security groups and IAM roles to ensure that the different tiers can communicate securely.
+
+Here are some links to AWS documentation and services that can help you with these tasks:
+
+Elastic Load Balancer: https://aws.amazon.com/elasticloadbalancing/
+Amazon EC2: https://aws.amazon.com/ec2/
+Amazon VPC: https://aws.amazon.com/vpc/
+Amazon Route 53: https://aws.amazon.com/route53/
+NGINX: https://www.nginx.com/
+Flask: https://flask.palletsprojects.com/
+Django: https://www.djangoproject.com/
+Amazon RDS: https://aws.amazon.com/rds/
+SQLAlchemy: https://www.sqlalchemy.org/
+psycopg2: https://pypi.org/project/psycopg2/
+Amazon S3: https://aws.amazon.com/s3/
+boto3: https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
